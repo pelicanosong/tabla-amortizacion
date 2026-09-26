@@ -3,10 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistema de Gestión de Préstamos y Amortización Real</title>
+  <title>Gestor de Préstamos y Amortización Real - Supabase Realtime</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
     body { font-family: 'Inter', sans-serif; }
@@ -24,15 +26,21 @@
   <header class="bg-slate-950 border-b border-slate-800 sticky top-0 z-40 shadow-lg">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap justify-between items-center gap-4">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white font-bold text-lg shadow-md shadow-blue-500/20">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-blue-500 flex items-center justify-center text-white font-bold text-lg shadow-md shadow-emerald-500/20">
           <i class="fa-solid fa-hand-holding-dollar"></i>
         </div>
         <div>
-          <h1 class="font-extrabold text-base sm:text-lg text-white leading-tight flex items-center gap-2">
-            Gestor de Préstamos & Pagos Reales
-            <span class="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">v2.0</span>
-          </h1>
-          <p class="text-xs text-slate-400">Seguimiento mes a mes con abonos variables, pagos parciales y extras</p>
+          <div class="flex items-center gap-2">
+            <h1 class="font-extrabold text-base sm:text-lg text-white leading-tight">
+              Gestor de Préstamos
+            </h1>
+            <!-- Connection Status Badge -->
+            <button onclick="openSupabaseModal()" id="supabaseStatusBadge" class="text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 transition bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+              <span id="supabaseStatusText">Modo Local (Configurar Supabase)</span>
+            </button>
+          </div>
+          <p class="text-xs text-slate-400">Amortización dinámica mes a mes con abonos variables en tiempo real</p>
         </div>
       </div>
 
@@ -49,7 +57,13 @@
           </button>
         </div>
 
-        <button onclick="openBackupModal()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs border border-slate-700 transition" title="Copia de seguridad y respaldo">
+        <!-- Supabase Settings Button -->
+        <button onclick="openSupabaseModal()" class="p-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 rounded-lg text-xs border border-slate-700 transition" title="Conexión Supabase (Nube / Self-host)">
+          <i class="fa-solid fa-bolt text-sm"></i>
+        </button>
+
+        <!-- Backup Button -->
+        <button onclick="openBackupModal()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs border border-slate-700 transition" title="Copia de seguridad local">
           <i class="fa-solid fa-cloud-arrow-down text-sm"></i>
         </button>
       </div>
@@ -58,6 +72,15 @@
 
   <!-- Main Container -->
   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-6">
+
+    <!-- Supabase Connected Alert Banner -->
+    <div id="supabaseBannerConnected" class="hidden bg-emerald-950/40 border border-emerald-800/60 rounded-xl p-3 flex justify-between items-center text-xs text-emerald-300">
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-circle-check text-emerald-400 text-sm"></i>
+        <span><strong>Supabase Conectado:</strong> Los préstamos y pagos se sincronizan en <strong>tiempo real</strong> en todos los celulares y computadores.</span>
+      </div>
+      <button onclick="openSupabaseModal()" class="text-[11px] underline font-bold hover:text-white">Ajustes</button>
+    </div>
 
     <!-- ========================================== -->
     <!-- VIEW 1: CLIENTS & REAL LOANS MANAGEMENT   -->
@@ -86,9 +109,9 @@
         <!-- Left Sidebar: Client List (4 cols) -->
         <div class="lg:col-span-4 bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-md">
           <div class="flex items-center justify-between pb-2 border-b border-slate-800/80">
-            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Lista de Préstamos Activos</h3>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Lista de Préstamos</h3>
             <button onclick="loadSampleClients()" class="text-[11px] text-blue-400 hover:text-blue-300 font-semibold flex items-center gap-1 transition">
-              <i class="fa-solid fa-wand-magic-sparkles"></i> Cargar ejemplos
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Ejemplos
             </button>
           </div>
 
@@ -197,10 +220,86 @@
   </main>
 
   <!-- ========================================== -->
+  <!-- MODAL: SUPABASE CONFIGURATION & REALTIME   -->
+  <!-- ========================================== -->
+  <div id="supabaseModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+        <h3 class="font-bold text-base text-white flex items-center gap-2">
+          <i class="fa-solid fa-bolt text-emerald-400"></i>
+          Conectar Base de Datos Supabase (Tiempo Real)
+        </h3>
+        <button onclick="closeModal('supabaseModal')" class="text-slate-400 hover:text-white text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-300 leading-relaxed">
+        Conecta tu proyecto gratuito de Supabase (Cloud o Self-Hosted) para que tú, tu padre y tu equipo puedan ver y registrar pagos <strong>en tiempo real desde cualquier celular o PC</strong>.
+      </p>
+
+      <form id="supabaseForm" onsubmit="saveSupabaseConfig(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Project URL (Supabase URL) *</label>
+          <input type="url" id="sbUrlInput" placeholder="https://xyzcompany.supabase.co" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Anon / Public API Key *</label>
+          <input type="password" id="sbKeyInput" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+        </div>
+
+        <div class="flex items-center justify-between pt-2">
+          <button type="button" onclick="disconnectSupabase()" class="text-xs text-rose-400 hover:underline">
+            Desconectar y usar solo Local
+          </button>
+          <div class="flex gap-2">
+            <button type="button" onclick="closeModal('supabaseModal')" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-xs font-semibold">Cancelar</button>
+            <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-500/20">Conectar y Sincronizar</button>
+          </div>
+        </div>
+      </form>
+
+      <!-- SQL Script Accordion for 1-click setup -->
+      <div class="pt-3 border-t border-slate-800 space-y-2">
+        <div class="flex justify-between items-center">
+          <span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+            <i class="fa-solid fa-code text-blue-400"></i> Código SQL de Inicialización (Tablas)
+          </span>
+          <button onclick="copySQLScript()" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg border border-slate-700 flex items-center gap-1">
+            <i class="fa-solid fa-copy"></i> Copiar SQL
+          </button>
+        </div>
+        <p class="text-[11px] text-slate-400">Pega este script en el <strong>SQL Editor</strong> de Supabase para crear las tablas y activar Realtime:</p>
+        <pre id="sqlSnippet" class="bg-slate-950 border border-slate-800 p-3 rounded-xl text-[10px] font-mono text-emerald-300 overflow-x-auto max-h-36">-- 1. Tabla de Clientes
+CREATE TABLE IF NOT EXISTS clients (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  notes TEXT,
+  capital NUMERIC NOT NULL,
+  rate_annual NUMERIC NOT NULL,
+  months INTEGER NOT NULL,
+  start_date DATE NOT NULL,
+  payments JSONB DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2. Habilitar Realtime para sincronización en vivo
+ALTER PUBLICATION supabase_realtime ADD TABLE clients;
+
+-- 3. Habilitar seguridad pública (Lectura/Escritura con Anon Key)
+ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public full access" ON clients FOR ALL USING (true) WITH CHECK (true);</pre>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================== -->
   <!-- MODAL: CREAR / EDITAR CLIENTE Y PRÉSTAMO   -->
   <!-- ========================================== -->
   <div id="clientModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5 animate-fade-in">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5">
       <div class="flex justify-between items-center pb-3 border-b border-slate-800">
         <h3 class="font-bold text-base text-white flex items-center gap-2" id="modalTitle">
           <i class="fa-solid fa-user-plus text-blue-500"></i>
@@ -214,19 +313,16 @@
       <form id="clientForm" onsubmit="saveClientForm(event)" class="space-y-4">
         <input type="hidden" id="formClientId">
 
-        <!-- Nombre -->
         <div>
           <label class="block text-xs font-semibold text-slate-300 mb-1">Nombre Completo del Cliente *</label>
           <input type="text" id="formClientName" required placeholder="Ej: Carlos Alberto Rodríguez" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
         </div>
 
-        <!-- Notas / Documento -->
         <div>
           <label class="block text-xs font-semibold text-slate-300 mb-1">Cédula / Teléfono / Notas</label>
-          <input type="text" id="formClientNotes" placeholder="Ej: C.C. 10.234.567 • Tel: 310-1234567 • Préstamo Vehículo" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <input type="text" id="formClientNotes" placeholder="Ej: C.C. 10.234.567 • Tel: 310-1234567" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
         </div>
 
-        <!-- Grid: Capital y Tasa -->
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-xs font-semibold text-slate-300 mb-1">Capital Inicial ($) *</label>
@@ -238,7 +334,6 @@
           </div>
         </div>
 
-        <!-- Grid: Plazo y Fecha -->
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-xs font-semibold text-slate-300 mb-1">Plazo en Meses *</label>
@@ -250,7 +345,6 @@
           </div>
         </div>
 
-        <!-- Buttons -->
         <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
           <button type="button" onclick="closeModal('clientModal')" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition">
             Cancelar
@@ -316,7 +410,7 @@
       </div>
 
       <p class="text-xs text-slate-400 leading-relaxed">
-        Tus clientes y pagos se guardan automáticamente en tu navegador. Si deseas cambiar de computador o guardar una copia segura en tu disco, usa estas opciones:
+        Descarga una copia completa de tus préstamos o restaura datos desde un archivo:
       </p>
 
       <div class="space-y-2.5 pt-2">
@@ -344,16 +438,18 @@
     </div>
   </div>
 
-  <!-- JAVASCRIPT LOGIC -->
+  <!-- JAVASCRIPT & SUPABASE REALTIME ENGINE -->
   <script>
-    // Storage Key
     const STORAGE_KEY = 'AMORTIZATION_CLIENTS_DATA_V2';
+    const SB_CONFIG_KEY = 'AMORTIZATION_SUPABASE_CONFIG_V2';
 
     // State
     let clients = [];
     let activeClientId = null;
+    let supabaseClient = null;
+    let realtimeChannel = null;
 
-    // Helper: Money Formatter
+    // Money Formatter
     const fmtMoney = (val) => {
       return new Intl.NumberFormat('es-CO', {
         style: 'currency',
@@ -362,7 +458,7 @@
       }).format(val || 0);
     };
 
-    // Helper: Date Formatter
+    // Date Formatter
     const fmtDate = (d) => {
       const date = new Date(d);
       const dd = String(date.getDate()).padStart(2, '0');
@@ -376,22 +472,183 @@
       return new Date(y, mm - 1 + m, d);
     };
 
-    // PMT calculation
     const calcPMT = (principal, monthlyRate, months) => {
       if (monthlyRate <= 0) return principal / months;
       return principal * (monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1);
     };
 
-    // Load from LocalStorage
-    function loadState() {
+    // ==========================================
+    // SUPABASE INTEGRATION & REALTIME ENGINE
+    // ==========================================
+    function initSupabase() {
+      const cfgStr = localStorage.getItem(SB_CONFIG_KEY);
+      if (!cfgStr) {
+        updateSupabaseUI(false);
+        loadLocalState();
+        return;
+      }
+
+      try {
+        const cfg = JSON.parse(cfgStr);
+        if (cfg.url && cfg.key && window.supabase) {
+          supabaseClient = window.supabase.createClient(cfg.url, cfg.key);
+          document.getElementById('sbUrlInput').value = cfg.url;
+          document.getElementById('sbKeyInput').value = cfg.key;
+          updateSupabaseUI(true);
+          fetchFromSupabase();
+          subscribeToRealtime();
+        } else {
+          updateSupabaseUI(false);
+          loadLocalState();
+        }
+      } catch (err) {
+        console.error('Supabase init error:', err);
+        updateSupabaseUI(false);
+        loadLocalState();
+      }
+    }
+
+    function updateSupabaseUI(connected) {
+      const badge = document.getElementById('supabaseStatusBadge');
+      const text = document.getElementById('supabaseStatusText');
+      const banner = document.getElementById('supabaseBannerConnected');
+
+      if (connected) {
+        badge.className = "text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 transition bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20";
+        badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span><span>Supabase En Vivo (Realtime)</span>';
+        if (banner) banner.classList.remove('hidden');
+      } else {
+        badge.className = "text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 transition bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20";
+        badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span><span>Modo Local (Configurar Supabase)</span>';
+        if (banner) banner.classList.add('hidden');
+      }
+    }
+
+    async function fetchFromSupabase() {
+      if (!supabaseClient) return;
+      try {
+        const { data, error } = await supabaseClient
+          .from('clients')
+          .select('*')
+          .order('updated_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (data && Array.isArray(data)) {
+          clients = data.map(row => ({
+            id: row.id,
+            name: row.name,
+            notes: row.notes,
+            capital: Number(row.capital),
+            rateAnnual: Number(row.rate_annual),
+            months: Number(row.months),
+            startDate: row.start_date,
+            payments: row.payments || {}
+          }));
+
+          if (clients.length > 0 && !activeClientId) {
+            activeClientId = clients[0].id;
+          }
+          saveLocalBackup();
+          render();
+        }
+      } catch (e) {
+        console.warn('Error fetching Supabase data, falling back to local cache:', e);
+        loadLocalState();
+      }
+    }
+
+    function subscribeToRealtime() {
+      if (!supabaseClient) return;
+      if (realtimeChannel) supabaseClient.removeChannel(realtimeChannel);
+
+      realtimeChannel = supabaseClient
+        .channel('clients-realtime-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, (payload) => {
+          console.log('Realtime update received:', payload);
+          fetchFromSupabase();
+        })
+        .subscribe((status) => {
+          console.log('Realtime subscription status:', status);
+        });
+    }
+
+    async function syncClientToSupabase(client) {
+      if (!supabaseClient) return;
+      try {
+        const row = {
+          id: client.id,
+          name: client.name,
+          notes: client.notes,
+          capital: client.capital,
+          rate_annual: client.rateAnnual,
+          months: client.months,
+          start_date: client.startDate,
+          payments: client.payments || {},
+          updated_at: new Date().toISOString()
+        };
+        await supabaseClient.from('clients').upsert(row);
+      } catch (err) {
+        console.error('Supabase sync error:', err);
+      }
+    }
+
+    async function deleteClientFromSupabase(id) {
+      if (!supabaseClient) return;
+      try {
+        await supabaseClient.from('clients').delete().eq('id', id);
+      } catch (err) {
+        console.error('Supabase delete error:', err);
+      }
+    }
+
+    function openSupabaseModal() {
+      document.getElementById('supabaseModal').classList.remove('hidden');
+    }
+
+    function saveSupabaseConfig(e) {
+      e.preventDefault();
+      const url = document.getElementById('sbUrlInput').value.trim();
+      const key = document.getElementById('sbKeyInput').value.trim();
+
+      if (!url || !key) {
+        alert('Por favor ingresa la URL y la Anon Key de Supabase.');
+        return;
+      }
+
+      localStorage.setItem(SB_CONFIG_KEY, JSON.stringify({ url, key }));
+      closeModal('supabaseModal');
+      initSupabase();
+      alert('¡Supabase configurado! Sincronizando datos...');
+    }
+
+    function disconnectSupabase() {
+      localStorage.removeItem(SB_CONFIG_KEY);
+      supabaseClient = null;
+      if (realtimeChannel) supabaseClient?.removeChannel(realtimeChannel);
+      updateSupabaseUI(false);
+      closeModal('supabaseModal');
+      loadLocalState();
+      alert('Desconectado de Supabase. Ahora estás usando el almacenamiento local.');
+    }
+
+    function copySQLScript() {
+      const sql = document.getElementById('sqlSnippet').textContent;
+      navigator.clipboard.writeText(sql);
+      alert('¡Script SQL copiado al portapapeles! Pégalo en el SQL Editor de tu Supabase.');
+    }
+
+    // ==========================================
+    // LOCAL STORAGE STATE
+    // ==========================================
+    function loadLocalState() {
       try {
         const data = localStorage.getItem(STORAGE_KEY);
         if (data) {
           clients = JSON.parse(data);
         } else {
-          // Initialize with default sample if empty
           clients = getInitialSamples();
-          saveState();
+          saveLocalBackup();
         }
       } catch (e) {
         clients = getInitialSamples();
@@ -403,28 +660,33 @@
       render();
     }
 
-    function saveState() {
+    function saveLocalBackup() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(clients));
       document.getElementById('clientCountBadge').textContent = clients.length;
     }
 
+    function saveStateAndSync(modifiedClient = null) {
+      saveLocalBackup();
+      if (modifiedClient && supabaseClient) {
+        syncClientToSupabase(modifiedClient);
+      }
+    }
+
     function getInitialSamples() {
-      const todayStr = new Date().toISOString().split('T')[0];
       return [
         {
           id: 'c_' + Date.now() + '_1',
           name: 'Carlos Alberto Rodríguez',
-          notes: 'C.C. 10.234.567 • Préstamo Hipotecario Vivienda',
+          notes: 'C.C. 10.234.567 • Préstamo Hipotecario',
           capital: 50000000,
           rateAnnual: 12,
           months: 180,
           startDate: '2026-01-01',
-          // payments map: monthNum -> realPaidAmount
           payments: {
-            1: 600085,   // Pagó cuota pactada normal
-            2: 1500000,  // ¡Abono extraordinario de $1.5M!
-            3: 300000,   // Pago parcial de $300k
-            4: 0         // No pudo pagar este mes ($0)
+            1: 600085,
+            2: 1500000,
+            3: 300000,
+            4: 0
           }
         },
         {
@@ -444,15 +706,15 @@
     }
 
     function loadSampleClients() {
-      if (confirm('¿Deseas cargar clientes de ejemplo para probar el sistema?')) {
+      if (confirm('¿Deseas cargar clientes de ejemplo?')) {
         clients = getInitialSamples();
         activeClientId = clients[0].id;
-        saveState();
+        clients.forEach(c => saveStateAndSync(c));
         render();
       }
     }
 
-    // Switch between Clients Tracker and Quick Simulator
+    // Switch View
     function switchView(view) {
       if (view === 'clients') {
         document.getElementById('viewClients').classList.remove('hidden');
@@ -492,7 +754,6 @@
         const schedule = calculateClientSchedule(c);
         const isActive = c.id === activeClientId;
         const remainingBalance = schedule.currentBalance;
-        const totalPaid = schedule.totalRealPaid;
         const progressPct = Math.min(100, Math.max(0, ((c.capital - remainingBalance) / c.capital) * 100)).toFixed(0);
 
         return `
@@ -534,7 +795,6 @@
       render();
     }
 
-    // Core Calculation for a Client with Real Payments
     function calculateClientSchedule(client) {
       const monthlyRate = (client.rateAnnual / 100) / 12;
       const suggestedPMT = calcPMT(client.capital, monthlyRate, client.months);
@@ -549,7 +809,6 @@
         const dateObj = addMonths(client.startDate, i);
         const dateFormatted = fmtDate(dateObj);
         
-        // If balance reached 0 previously and no balance left
         if (balance <= 0 && (!client.payments[i] || client.payments[i] === 0)) {
           rows.push({
             num: i,
@@ -570,7 +829,6 @@
         const initialBalance = balance;
         const interest = initialBalance * monthlyRate;
 
-        // Check if user entered a real payment for this month
         const hasCustomPayment = (client.payments && client.payments.hasOwnProperty(i));
         const realPayment = hasCustomPayment ? Number(client.payments[i]) : suggestedPMT;
 
@@ -584,7 +842,7 @@
             status = 'NO_PAY';
             statusLabel = '🔴 Sin Pago';
             capitalPayment = 0;
-            finalBalance = initialBalance; // Interest unpaid accumulates or balance unchanged
+            finalBalance = initialBalance;
           } else if (realPayment > suggestedPMT + 50) {
             status = 'EXTRA';
             statusLabel = '🔵 Abono Extra';
@@ -602,7 +860,6 @@
             finalBalance = Math.max(0, initialBalance - capitalPayment);
           }
         } else {
-          // Default theoretical
           status = 'PENDING';
           statusLabel = '⚪ Pendiente';
           capitalPayment = Math.min(initialBalance, suggestedPMT - interest);
@@ -629,7 +886,6 @@
         });
       }
 
-      // Find current active month (first unpaid or partially recorded)
       let currentMonthIndex = 1;
       for (let i = 1; i <= client.months; i++) {
         if (!client.payments || !client.payments.hasOwnProperty(i)) {
@@ -649,7 +905,6 @@
       };
     }
 
-    // Render Active Client Details Pane
     function renderClientDetail() {
       const container = document.getElementById('clientDetailContainer');
       const client = clients.find(c => c.id === activeClientId);
@@ -671,7 +926,6 @@
       const paidMonthsCount = Object.keys(client.payments || {}).length;
 
       container.innerHTML = `
-        <!-- Client Profile Header Card -->
         <div class="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-md space-y-5">
           <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-800">
             <div>
@@ -684,7 +938,6 @@
               <p class="text-xs text-slate-400 mt-0.5">${client.notes || 'Sin descripción adicional'}</p>
             </div>
 
-            <!-- Client Action buttons -->
             <div class="flex items-center gap-2 flex-wrap">
               <button onclick="openQuickPayModal('${client.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-lg shadow-emerald-500/20 flex items-center gap-1.5 transition">
                 <i class="fa-solid fa-plus-circle"></i>
@@ -703,7 +956,6 @@
             </div>
           </div>
 
-          <!-- KPI Cards for this Loan -->
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800">
               <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Capital Inicial</span>
@@ -731,7 +983,6 @@
           </div>
         </div>
 
-        <!-- Real Payments Amortization Table -->
         <div class="bg-slate-950 border border-slate-800 rounded-2xl shadow-md overflow-hidden space-y-3">
           <div class="p-4 bg-slate-900 border-b border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
             <div>
@@ -773,7 +1024,6 @@
                       <td class="py-2.5 px-3 text-right text-purple-300/80">${fmtMoney(r.suggestedCuota)}</td>
                       <td class="py-2.5 px-3 text-right text-rose-300/90">${fmtMoney(r.interest)}</td>
                       
-                      <!-- Editable Real Payment Cell -->
                       <td class="py-1 px-2 text-center bg-slate-900/80">
                         <div class="relative flex items-center">
                           <span class="absolute left-2 text-slate-500 text-[10px]">$</span>
@@ -812,7 +1062,6 @@
       `;
     }
 
-    // Update individual payment cell on change
     function updateRowPayment(clientId, monthNum, valStr) {
       const client = clients.find(c => c.id === clientId);
       if (!client) return;
@@ -825,7 +1074,7 @@
         client.payments[monthNum] = Math.max(0, parseFloat(valStr) || 0);
       }
 
-      saveState();
+      saveStateAndSync(client);
       render();
     }
 
@@ -871,20 +1120,20 @@
       const months = parseInt(document.getElementById('formMonths').value) || 180;
       const startDate = document.getElementById('formStartDate').value;
 
+      let savedClient = null;
+
       if (id) {
-        // Edit
-        const client = clients.find(c => c.id === id);
-        if (client) {
-          client.name = name;
-          client.notes = notes;
-          client.capital = capital;
-          client.rateAnnual = rateAnnual;
-          client.months = months;
-          client.startDate = startDate;
+        savedClient = clients.find(c => c.id === id);
+        if (savedClient) {
+          savedClient.name = name;
+          savedClient.notes = notes;
+          savedClient.capital = capital;
+          savedClient.rateAnnual = rateAnnual;
+          savedClient.months = months;
+          savedClient.startDate = startDate;
         }
       } else {
-        // New
-        const newClient = {
+        savedClient = {
           id: 'c_' + Date.now(),
           name,
           notes,
@@ -894,11 +1143,11 @@
           startDate,
           payments: {}
         };
-        clients.unshift(newClient);
-        activeClientId = newClient.id;
+        clients.unshift(savedClient);
+        activeClientId = savedClient.id;
       }
 
-      saveState();
+      saveStateAndSync(savedClient);
       closeModal('clientModal');
       render();
     }
@@ -912,7 +1161,8 @@
         if (activeClientId === id) {
           activeClientId = clients.length > 0 ? clients[0].id : null;
         }
-        saveState();
+        deleteClientFromSupabase(id);
+        saveLocalBackup();
         render();
       }
     }
@@ -964,7 +1214,7 @@
       if (!client.payments) client.payments = {};
       client.payments[monthNum] = amount;
 
-      saveState();
+      saveStateAndSync(client);
       closeModal('quickPayModal');
       render();
     }
@@ -973,7 +1223,6 @@
       document.getElementById(id).classList.add('hidden');
     }
 
-    // Export Client to Personalized Excel
     function exportClientExcel(clientId) {
       const client = clients.find(c => c.id === clientId);
       if (!client) return;
@@ -1025,7 +1274,6 @@
       XLSX.writeFile(wb, `Amortizacion_${cleanName}.xlsx`);
     }
 
-    // Backup & Restore
     function openBackupModal() {
       document.getElementById('backupModal').classList.remove('hidden');
     }
@@ -1051,7 +1299,7 @@
           if (Array.isArray(imported)) {
             clients = imported;
             if (clients.length > 0) activeClientId = clients[0].id;
-            saveState();
+            clients.forEach(c => saveStateAndSync(c));
             render();
             closeModal('backupModal');
             alert('¡Copia de seguridad restaurada con éxito!');
@@ -1065,7 +1313,6 @@
       reader.readAsText(file);
     }
 
-    // Quick Simulator Calculator
     function calculateSimulator() {
       const capital = parseFloat(document.getElementById('simCapital').value) || 0;
       const rate = parseFloat(document.getElementById('simRate').value) || 0;
@@ -1124,18 +1371,16 @@
       window.location.href = "Tabla_Amortizacion_180_Meses.xlsx";
     }
 
-    // Main Render
     function render() {
       renderClientsList();
       renderClientDetail();
     }
 
-    // Init
     document.addEventListener('DOMContentLoaded', () => {
       const today = new Date().toISOString().split('T')[0];
       const simStart = document.getElementById('simStartDate');
       if (simStart) simStart.value = today;
-      loadState();
+      initSupabase();
     });
   </script>
 </body>
