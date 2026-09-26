@@ -3,333 +3,1140 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tabla de Amortización de Crédito - 180 Meses</title>
+  <title>Sistema de Gestión de Préstamos y Amortización Real</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
     body { font-family: 'Inter', sans-serif; }
     .sticky-header th { position: sticky; top: 0; z-index: 20; }
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button { 
+      -webkit-appearance: none; 
+      margin: 0; 
+    }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen">
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
 
-  <!-- Top Navigation Bar -->
-  <nav class="bg-slate-900 text-white shadow-md sticky top-0 z-30">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row justify-between items-center gap-3">
+  <!-- Top Navigation Header -->
+  <header class="bg-slate-950 border-b border-slate-800 sticky top-0 z-40 shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap justify-between items-center gap-4">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-inner">
-          <i class="fa-solid fa-calculator"></i>
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white font-bold text-lg shadow-md shadow-blue-500/20">
+          <i class="fa-solid fa-hand-holding-dollar"></i>
         </div>
         <div>
-          <h1 class="font-bold text-lg leading-tight">Tabla de Amortización Dinámica</h1>
-          <p class="text-xs text-slate-400">Sistema de Cuota Fija (Francés) • Proyección 180 Meses • 100% Desbloqueada</p>
+          <h1 class="font-extrabold text-base sm:text-lg text-white leading-tight flex items-center gap-2">
+            Gestor de Préstamos & Pagos Reales
+            <span class="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">v2.0</span>
+          </h1>
+          <p class="text-xs text-slate-400">Seguimiento mes a mes con abonos variables, pagos parciales y extras</p>
         </div>
       </div>
-      
-      <!-- Action Buttons -->
+
+      <!-- Navigation Tabs & Global Tools -->
       <div class="flex items-center gap-2">
-        <a href="Tabla_Amortizacion_180_Meses.xlsx" download="Tabla_Amortizacion_180_Meses.xlsx" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow transition transform hover:-translate-y-0.5">
-          <i class="fa-solid fa-file-excel text-base"></i>
-          <span>Descargar Excel (.xlsx)</span>
-        </a>
-        <button onclick="window.print()" class="inline-flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-lg text-sm font-medium border border-slate-700 transition">
-          <i class="fa-solid fa-print"></i>
-          <span class="hidden md:inline">Imprimir</span>
+        <div class="bg-slate-900 p-1 rounded-xl border border-slate-800 flex">
+          <button onclick="switchView('clients')" id="tabClients" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-blue-600 text-white shadow">
+            <i class="fa-solid fa-users"></i>
+            <span>Mis Clientes (<span id="clientCountBadge">0</span>)</span>
+          </button>
+          <button onclick="switchView('simulator')" id="tabSimulator" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-1.5">
+            <i class="fa-solid fa-calculator"></i>
+            <span>Simulador Libre</span>
+          </button>
+        </div>
+
+        <button onclick="openBackupModal()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs border border-slate-700 transition" title="Copia de seguridad y respaldo">
+          <i class="fa-solid fa-cloud-arrow-down text-sm"></i>
         </button>
       </div>
     </div>
-  </nav>
+  </header>
 
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-6">
 
-    <!-- Inputs and Parameters Grid -->
-    <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-      <div class="flex items-center justify-between pb-4 mb-5 border-b border-slate-100">
-        <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
-          <i class="fa-solid fa-sliders text-blue-600"></i>
-          Parámetros Modificables del Préstamo
-        </h2>
-        <span class="text-xs font-semibold px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">
-          <i class="fa-solid fa-unlock-keyhole mr-1"></i> Libre de Bloqueos
-        </span>
+    <!-- ========================================== -->
+    <!-- VIEW 1: CLIENTS & REAL LOANS MANAGEMENT   -->
+    <!-- ========================================== -->
+    <div id="viewClients" class="space-y-6">
+      
+      <!-- Top Action Bar -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Search bar -->
+        <div class="md:col-span-2 relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-slate-500 text-sm"></i>
+          <input type="text" id="searchClientInput" oninput="renderClientsList()" placeholder="Buscar cliente por nombre o nota..." class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+        </div>
+        <!-- New client button -->
+        <div class="flex gap-2">
+          <button onclick="openNewClientModal()" class="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold px-4 py-2.5 rounded-xl text-sm shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 transition transform hover:-translate-y-0.5">
+            <i class="fa-solid fa-user-plus"></i>
+            <span>Nuevo Préstamo / Cliente</span>
+          </button>
+        </div>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <!-- Capital / Monto -->
-        <div class="space-y-1.5">
-          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider">
-            Capital / Monto Solicitado
-          </label>
-          <div class="relative">
-            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold">$</span>
-            <input type="number" id="inputCapital" value="50000000" step="500000" min="1000" class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-3 py-2.5 text-sm font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+      <!-- Main Master-Detail Layout -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- Left Sidebar: Client List (4 cols) -->
+        <div class="lg:col-span-4 bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-md">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-800/80">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Lista de Préstamos Activos</h3>
+            <button onclick="loadSampleClients()" class="text-[11px] text-blue-400 hover:text-blue-300 font-semibold flex items-center gap-1 transition">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Cargar ejemplos
+            </button>
           </div>
-          <p class="text-xs text-blue-600 font-medium" id="capitalFormatted">$ 50.000.000</p>
-        </div>
 
-        <!-- Tasa de Interés -->
-        <div class="space-y-1.5">
-          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider">
-            Tasa Nominal Anual (TNA %)
-          </label>
-          <div class="relative">
-            <input type="number" id="inputRate" value="12" step="0.1" min="0" max="100" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
-            <span class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 font-bold">%</span>
+          <div id="clientsContainer" class="space-y-2 max-h-[620px] overflow-y-auto pr-1">
+            <!-- Dynamic client cards inserted here -->
           </div>
-          <p class="text-xs text-slate-500 font-medium" id="monthlyRateFormatted">Tasa mensual: 1,0000%</p>
         </div>
 
-        <!-- Plazo en Meses -->
-        <div class="space-y-1.5">
-          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider">
-            Plazo Total (en Meses)
-          </label>
-          <input type="number" id="inputMonths" value="180" min="1" max="360" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
-          <p class="text-xs text-slate-500 font-medium" id="yearsFormatted">15 años (180 cuotas)</p>
+        <!-- Right Pane: Active Client Detailed Loan Tracker (8 cols) -->
+        <div class="lg:col-span-8 space-y-6">
+          <div id="clientDetailContainer">
+            <!-- Populated dynamically when a client is selected -->
+          </div>
         </div>
 
-        <!-- Fecha Inicial -->
-        <div class="space-y-1.5">
-          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider">
-            Fecha Inicial (Desembolso)
-          </label>
-          <input type="date" id="inputStartDate" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
-          <p class="text-xs text-slate-500 font-medium" id="endDateFormatted">Fecha Final: --</p>
-        </div>
       </div>
+
     </div>
 
-    <!-- Summary KPI Cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div class="bg-blue-50/70 border border-blue-200/80 rounded-2xl p-4 shadow-sm">
-        <p class="text-xs font-semibold uppercase tracking-wider text-blue-700 mb-1">Cuota Mensual Fija</p>
-        <p class="text-2xl font-extrabold text-blue-900" id="kpiMonthlyPayment">$ 0</p>
-        <p class="text-[11px] text-blue-600 mt-1 font-medium">Pago constante cada mes</p>
-      </div>
-
-      <div class="bg-purple-50/70 border border-purple-200/80 rounded-2xl p-4 shadow-sm">
-        <p class="text-xs font-semibold uppercase tracking-wider text-purple-700 mb-1">Total Intereses</p>
-        <p class="text-2xl font-extrabold text-purple-900" id="kpiTotalInterest">$ 0</p>
-        <p class="text-[11px] text-purple-600 mt-1 font-medium" id="kpiInterestRatio">Intereses calculados</p>
-      </div>
-
-      <div class="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-4 shadow-sm">
-        <p class="text-xs font-semibold uppercase tracking-wider text-emerald-700 mb-1">Total a Pagar</p>
-        <p class="text-2xl font-extrabold text-emerald-900" id="kpiTotalPayment">$ 0</p>
-        <p class="text-[11px] text-emerald-600 mt-1 font-medium">Capital + Intereses sumados</p>
-      </div>
-
-      <div class="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 shadow-sm">
-        <p class="text-xs font-semibold uppercase tracking-wider text-amber-700 mb-1">Fecha Final Estimada</p>
-        <p class="text-2xl font-extrabold text-amber-900" id="kpiFinalDate">--</p>
-        <p class="text-[11px] text-amber-600 mt-1 font-medium">Última cuota liquidada</p>
-      </div>
-    </div>
-
-    <!-- Table Section -->
-    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-      <!-- Table Filter and Tools Toolbar -->
-      <div class="p-4 sm:px-6 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div class="flex items-center gap-2">
-          <span class="text-xs font-bold text-slate-700 uppercase tracking-wide">Filtrar vista:</span>
-          <select id="selectPage" class="bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="all">Todas las 180 cuotas</option>
-            <option value="first24">Primeras 24 cuotas (2 años)</option>
-            <option value="first60">Primeras 60 cuotas (5 años)</option>
-            <option value="last24">Últimas 24 cuotas</option>
-          </select>
+    <!-- ========================================== -->
+    <!-- VIEW 2: QUICK SIMULATOR (ORIGINAL TOOL)    -->
+    <!-- ========================================== -->
+    <div id="viewSimulator" class="hidden space-y-6">
+      <div class="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-md space-y-6">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-4 border-b border-slate-800">
+          <div>
+            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-calculator text-blue-500"></i>
+              Simulador Teórico de Cuota Fija
+            </h2>
+            <p class="text-xs text-slate-400">Proyección matemática estándar a 180 meses para cotizaciones rápidas</p>
+          </div>
+          <button onclick="exportSimulatorToExcel()" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md transition">
+            <i class="fa-solid fa-file-excel text-sm"></i>
+            Descargar este Excel
+          </button>
         </div>
-        <div class="text-xs text-slate-600 font-medium">
-          Mostrando <span id="displayedCount" class="font-bold text-slate-900">180</span> cuotas calculadas
+
+        <!-- Simulator Inputs -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 space-y-1">
+            <label class="text-[11px] font-bold text-slate-400 uppercase">Capital / Monto</label>
+            <input type="number" id="simCapital" value="50000000" step="500000" oninput="calculateSimulator()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm font-bold text-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            <p class="text-[11px] text-blue-400 font-semibold" id="simCapitalFmt">$ 50.000.000</p>
+          </div>
+
+          <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 space-y-1">
+            <label class="text-[11px] font-bold text-slate-400 uppercase">Tasa Anual (TNA %)</label>
+            <input type="number" id="simRate" value="12" step="0.1" oninput="calculateSimulator()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm font-bold text-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            <p class="text-[11px] text-slate-400" id="simMonthlyRateFmt">Tasa mensual: 1.00%</p>
+          </div>
+
+          <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 space-y-1">
+            <label class="text-[11px] font-bold text-slate-400 uppercase">Plazo en Meses</label>
+            <input type="number" id="simMonths" value="180" min="1" max="360" oninput="calculateSimulator()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm font-bold text-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            <p class="text-[11px] text-slate-400" id="simYearsFmt">15 años (180 cuotas)</p>
+          </div>
+
+          <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 space-y-1">
+            <label class="text-[11px] font-bold text-slate-400 uppercase">Fecha Inicial</label>
+            <input type="date" id="simStartDate" onchange="calculateSimulator()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm font-bold text-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            <p class="text-[11px] text-slate-400" id="simEndDateFmt">Fecha final: --</p>
+          </div>
         </div>
-      </div>
 
-      <!-- Main Amortization Table -->
-      <div class="overflow-x-auto max-h-[580px] overflow-y-auto">
-        <table class="w-full text-xs text-left border-collapse">
-          <thead class="sticky-header bg-slate-800 text-white font-semibold shadow-sm">
-            <tr>
-              <th class="py-3.5 px-4 text-center">Número de Cuota</th>
-              <th class="py-3.5 px-4 text-center">Fecha</th>
-              <th class="py-3.5 px-4 text-right">Capital Inicial</th>
-              <th class="py-3.5 px-4 text-right">Cuota Total</th>
-              <th class="py-3.5 px-4 text-right text-emerald-400">Cuota Capital</th>
-              <th class="py-3.5 px-4 text-right text-rose-300">Intereses</th>
-              <th class="py-3.5 px-4 text-right text-blue-300">Saldo del Capital</th>
-            </tr>
-          </thead>
-          <tbody id="tableBody" class="divide-y divide-slate-100 font-mono">
-            <!-- Filas pobladas dinámicamente -->
-          </tbody>
-          <tfoot class="sticky bottom-0 bg-slate-100 font-bold border-t-2 border-slate-300 text-slate-800 text-xs">
-            <tr id="totalsRow">
-              <td class="py-3 px-4 text-center font-sans">TOTALES</td>
-              <td class="py-3 px-4 text-center font-sans">--</td>
-              <td class="py-3 px-4 text-right font-sans">--</td>
-              <td class="py-3 px-4 text-right" id="footTotalCuota">$0</td>
-              <td class="py-3 px-4 text-right text-emerald-700" id="footTotalCapital">$0</td>
-              <td class="py-3 px-4 text-right text-rose-700" id="footTotalIntereses">$0</td>
-              <td class="py-3 px-4 text-right text-blue-700">$0.00</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    </div>
+        <!-- Simulator KPI cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div class="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20">
+            <p class="text-[10px] font-bold uppercase tracking-wider text-blue-400">Cuota Mensual Fija</p>
+            <p class="text-lg font-extrabold text-white" id="simKpiCuota">$ 0</p>
+          </div>
+          <div class="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/20">
+            <p class="text-[10px] font-bold uppercase tracking-wider text-purple-400">Total Intereses</p>
+            <p class="text-lg font-extrabold text-white" id="simKpiInterest">$ 0</p>
+          </div>
+          <div class="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+            <p class="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Total a Pagar</p>
+            <p class="text-lg font-extrabold text-white" id="simKpiTotal">$ 0</p>
+          </div>
+          <div class="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
+            <p class="text-[10px] font-bold uppercase tracking-wider text-amber-400">Fecha Última Cuota</p>
+            <p class="text-lg font-extrabold text-white" id="simKpiFinalDate">--</p>
+          </div>
+        </div>
 
-    <!-- Instructions / Footer Note -->
-    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-800 flex items-start gap-3">
-      <i class="fa-solid fa-circle-info text-blue-600 text-base mt-0.5"></i>
-      <div>
-        <p class="font-bold">¿Cómo funciona la tabla?</p>
-        <p class="mt-0.5 text-blue-700 leading-relaxed">
-          Cada mes, el <strong>Capital Inicial</strong> toma exactamente el <strong>Saldo del Capital</strong> del mes anterior. La <strong>Cuota Capital</strong> amortiza la deuda y los <strong>Intereses</strong> se liquidan sobre el saldo pendiente. Al finalizar la cuota 180, el saldo final es $0. Puedes descargar el archivo en formato Excel presionando el botón superior verde.
-        </p>
+        <!-- Simulator Table -->
+        <div class="overflow-x-auto rounded-xl border border-slate-800 max-h-[500px] overflow-y-auto">
+          <table class="w-full text-xs text-left border-collapse">
+            <thead class="sticky-header bg-slate-900 text-slate-300 font-semibold border-b border-slate-800">
+              <tr>
+                <th class="py-3 px-3 text-center">N°</th>
+                <th class="py-3 px-3 text-center">Fecha</th>
+                <th class="py-3 px-3 text-right">Capital Inicial</th>
+                <th class="py-3 px-3 text-right">Cuota Total</th>
+                <th class="py-3 px-3 text-right text-emerald-400">Cuota Capital</th>
+                <th class="py-3 px-3 text-right text-rose-400">Intereses</th>
+                <th class="py-3 px-3 text-right text-blue-400">Saldo del Capital</th>
+              </tr>
+            </thead>
+            <tbody id="simTableBody" class="divide-y divide-slate-800/60 font-mono"></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
   </main>
 
+  <!-- ========================================== -->
+  <!-- MODAL: CREAR / EDITAR CLIENTE Y PRÉSTAMO   -->
+  <!-- ========================================== -->
+  <div id="clientModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5 animate-fade-in">
+      <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+        <h3 class="font-bold text-base text-white flex items-center gap-2" id="modalTitle">
+          <i class="fa-solid fa-user-plus text-blue-500"></i>
+          Nuevo Registro de Cliente / Préstamo
+        </h3>
+        <button onclick="closeModal('clientModal')" class="text-slate-400 hover:text-white text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="clientForm" onsubmit="saveClientForm(event)" class="space-y-4">
+        <input type="hidden" id="formClientId">
+
+        <!-- Nombre -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Nombre Completo del Cliente *</label>
+          <input type="text" id="formClientName" required placeholder="Ej: Carlos Alberto Rodríguez" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <!-- Notas / Documento -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Cédula / Teléfono / Notas</label>
+          <input type="text" id="formClientNotes" placeholder="Ej: C.C. 10.234.567 • Tel: 310-1234567 • Préstamo Vehículo" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <!-- Grid: Capital y Tasa -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Capital Inicial ($) *</label>
+            <input type="number" id="formCapital" required step="100000" min="1000" placeholder="50000000" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white font-bold focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Tasa Anual (TNA %) *</label>
+            <input type="number" id="formRate" required step="0.1" min="0" max="100" placeholder="12" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white font-bold focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+
+        <!-- Grid: Plazo y Fecha -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Plazo en Meses *</label>
+            <input type="number" id="formMonths" required min="1" max="360" value="180" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white font-bold focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Fecha de Inicio *</label>
+            <input type="date" id="formStartDate" required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white font-bold focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeModal('clientModal')" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition">
+            Cancelar
+          </button>
+          <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-blue-500/20 transition">
+            Guardar Préstamo
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: REGISTRO RÁPIDO DE PAGO             -->
+  <!-- ========================================== -->
+  <div id="quickPayModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+        <h3 class="font-bold text-sm text-white flex items-center gap-2">
+          <i class="fa-solid fa-money-bill-transfer text-emerald-500"></i>
+          Registrar Pago de Cuota
+        </h3>
+        <button onclick="closeModal('quickPayModal')" class="text-slate-400 hover:text-white text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1.5 text-xs">
+        <p class="text-slate-400">Cliente: <span class="font-bold text-white" id="quickPayClientName">--</span></p>
+        <p class="text-slate-400">Cuota N°: <span class="font-bold text-blue-400" id="quickPayMonthNum">--</span> (<span id="quickPayDate">--</span>)</p>
+        <p class="text-slate-400">Cuota Pactada Sugerida: <span class="font-bold text-emerald-400" id="quickPaySuggestedAmount">--</span></p>
+      </div>
+
+      <div class="space-y-1.5">
+        <label class="block text-xs font-bold text-slate-300">¿Cuánto pagó realmente el cliente? ($) *</label>
+        <input type="number" id="quickPayAmountInput" step="1000" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-3 text-lg font-black text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+        <div class="flex gap-2 pt-1">
+          <button type="button" onclick="setQuickPayExact()" class="text-[11px] px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 font-medium">Pago Exacto</button>
+          <button type="button" onclick="setQuickPayZero()" class="text-[11px] px-2.5 py-1 bg-rose-950/40 text-rose-300 rounded-lg border border-rose-900/40 font-medium">No Pagó ($0)</button>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+        <button type="button" onclick="closeModal('quickPayModal')" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold">Cancelar</button>
+        <button type="button" onclick="confirmQuickPayment()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-500/20">Confirmar Pago</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: BACKUP & EXPORT/IMPORT              -->
+  <!-- ========================================== -->
+  <div id="backupModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+        <h3 class="font-bold text-sm text-white flex items-center gap-2">
+          <i class="fa-solid fa-database text-blue-500"></i>
+          Respaldo y Copia de Seguridad
+        </h3>
+        <button onclick="closeModal('backupModal')" class="text-slate-400 hover:text-white text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Tus clientes y pagos se guardan automáticamente en tu navegador. Si deseas cambiar de computador o guardar una copia segura en tu disco, usa estas opciones:
+      </p>
+
+      <div class="space-y-2.5 pt-2">
+        <button onclick="downloadBackupJSON()" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold p-3 rounded-xl text-xs flex items-center justify-between border border-slate-700 transition">
+          <span class="flex items-center gap-2">
+            <i class="fa-solid fa-download text-blue-400 text-sm"></i>
+            Descargar archivo de respaldo (.json)
+          </span>
+          <i class="fa-solid fa-chevron-right text-slate-500 text-xs"></i>
+        </button>
+
+        <label class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold p-3 rounded-xl text-xs flex items-center justify-between border border-slate-700 transition cursor-pointer">
+          <span class="flex items-center gap-2">
+            <i class="fa-solid fa-upload text-emerald-400 text-sm"></i>
+            Restaurar desde archivo de respaldo
+          </span>
+          <input type="file" id="importJsonInput" accept=".json" onchange="importBackupJSON(event)" class="hidden">
+          <i class="fa-solid fa-chevron-right text-slate-500 text-xs"></i>
+        </label>
+      </div>
+
+      <div class="pt-2 flex justify-end">
+        <button onclick="closeModal('backupModal')" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-xs font-semibold">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT LOGIC -->
   <script>
-    const formatMoney = (amount) => {
+    // Storage Key
+    const STORAGE_KEY = 'AMORTIZATION_CLIENTS_DATA_V2';
+
+    // State
+    let clients = [];
+    let activeClientId = null;
+
+    // Helper: Money Formatter
+    const fmtMoney = (val) => {
       return new Intl.NumberFormat('es-CO', {
         style: 'currency',
         currency: 'COP',
         maximumFractionDigits: 0
-      }).format(amount);
+      }).format(val || 0);
     };
 
-    const formatDate = (date) => {
-      const d = new Date(date);
-      const day = String(d.getDate()).padStart(2, '0');
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const year = d.getFullYear();
-      return `${day}/${month}/${year}`;
+    // Helper: Date Formatter
+    const fmtDate = (d) => {
+      const date = new Date(d);
+      const dd = String(date.getDate()).padStart(2, '0');
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
     };
 
-    const addMonths = (dateStr, months) => {
-      const [y, m, d] = dateStr.split('-').map(Number);
-      const date = new Date(y, m - 1 + months, d);
-      return date;
+    const addMonths = (dateStr, m) => {
+      const [y, mm, d] = dateStr.split('-').map(Number);
+      return new Date(y, mm - 1 + m, d);
     };
 
-    // Initialize default start date
-    const today = new Date();
-    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-    const yyyy = nextMonth.getFullYear();
-    const mm = String(nextMonth.getMonth() + 1).padStart(2, '0');
-    const dd = String(nextMonth.getDate()).padStart(2, '0');
-    document.getElementById('inputStartDate').value = `${yyyy}-${mm}-${dd}`;
+    // PMT calculation
+    const calcPMT = (principal, monthlyRate, months) => {
+      if (monthlyRate <= 0) return principal / months;
+      return principal * (monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1);
+    };
 
-    function calculateAmortization() {
-      const principal = parseFloat(document.getElementById('inputCapital').value) || 0;
-      const annualRate = parseFloat(document.getElementById('inputRate').value) || 0;
-      const months = parseInt(document.getElementById('inputMonths').value) || 1;
-      const startDateStr = document.getElementById('inputStartDate').value || `${yyyy}-${mm}-${dd}`;
-      const filterMode = document.getElementById('selectPage').value;
-
-      const monthlyRate = (annualRate / 100) / 12;
-
-      document.getElementById('capitalFormatted').textContent = formatMoney(principal);
-      document.getElementById('monthlyRateFormatted').textContent = `Tasa mensual: ${(monthlyRate * 100).toFixed(4)}%`;
-      document.getElementById('yearsFormatted').textContent = `${(months / 12).toFixed(1)} años (${months} cuotas)`;
-
-      let monthlyPayment = 0;
-      if (monthlyRate > 0) {
-        monthlyPayment = principal * (monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1);
-      } else {
-        monthlyPayment = principal / months;
+    // Load from LocalStorage
+    function loadState() {
+      try {
+        const data = localStorage.getItem(STORAGE_KEY);
+        if (data) {
+          clients = JSON.parse(data);
+        } else {
+          // Initialize with default sample if empty
+          clients = getInitialSamples();
+          saveState();
+        }
+      } catch (e) {
+        clients = getInitialSamples();
       }
 
-      let balance = principal;
-      let totalInterest = 0;
-      let totalCapitalAmortized = 0;
-      let totalCuotasPaid = 0;
+      if (clients.length > 0 && !activeClientId) {
+        activeClientId = clients[0].id;
+      }
+      render();
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(clients));
+      document.getElementById('clientCountBadge').textContent = clients.length;
+    }
+
+    function getInitialSamples() {
+      const todayStr = new Date().toISOString().split('T')[0];
+      return [
+        {
+          id: 'c_' + Date.now() + '_1',
+          name: 'Carlos Alberto Rodríguez',
+          notes: 'C.C. 10.234.567 • Préstamo Hipotecario Vivienda',
+          capital: 50000000,
+          rateAnnual: 12,
+          months: 180,
+          startDate: '2026-01-01',
+          // payments map: monthNum -> realPaidAmount
+          payments: {
+            1: 600085,   // Pagó cuota pactada normal
+            2: 1500000,  // ¡Abono extraordinario de $1.5M!
+            3: 300000,   // Pago parcial de $300k
+            4: 0         // No pudo pagar este mes ($0)
+          }
+        },
+        {
+          id: 'c_' + Date.now() + '_2',
+          name: 'María Elena Gómez',
+          notes: 'Local Comercial #4 • Cel: 315-9876543',
+          capital: 25000000,
+          rateAnnual: 14.5,
+          months: 60,
+          startDate: '2026-03-01',
+          payments: {
+            1: 588000,
+            2: 1000000
+          }
+        }
+      ];
+    }
+
+    function loadSampleClients() {
+      if (confirm('¿Deseas cargar clientes de ejemplo para probar el sistema?')) {
+        clients = getInitialSamples();
+        activeClientId = clients[0].id;
+        saveState();
+        render();
+      }
+    }
+
+    // Switch between Clients Tracker and Quick Simulator
+    function switchView(view) {
+      if (view === 'clients') {
+        document.getElementById('viewClients').classList.remove('hidden');
+        document.getElementById('viewSimulator').classList.add('hidden');
+        document.getElementById('tabClients').className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-blue-600 text-white shadow';
+        document.getElementById('tabSimulator').className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-1.5';
+      } else {
+        document.getElementById('viewClients').classList.add('hidden');
+        document.getElementById('viewSimulator').classList.remove('hidden');
+        document.getElementById('tabSimulator').className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-blue-600 text-white shadow';
+        document.getElementById('tabClients').className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-1.5';
+        calculateSimulator();
+      }
+    }
+
+    // Render Master Client List
+    function renderClientsList() {
+      const container = document.getElementById('clientsContainer');
+      const query = (document.getElementById('searchClientInput').value || '').toLowerCase();
+      
+      const filtered = clients.filter(c => 
+        c.name.toLowerCase().includes(query) || (c.notes && c.notes.toLowerCase().includes(query))
+      );
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-8 text-slate-500 space-y-2">
+            <i class="fa-solid fa-folder-open text-2xl text-slate-600"></i>
+            <p class="text-xs">No hay préstamos registrados.</p>
+            <button onclick="openNewClientModal()" class="text-xs text-blue-400 font-bold hover:underline">Crear el primero</button>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filtered.map(c => {
+        const schedule = calculateClientSchedule(c);
+        const isActive = c.id === activeClientId;
+        const remainingBalance = schedule.currentBalance;
+        const totalPaid = schedule.totalRealPaid;
+        const progressPct = Math.min(100, Math.max(0, ((c.capital - remainingBalance) / c.capital) * 100)).toFixed(0);
+
+        return `
+          <div onclick="selectClient('${c.id}')" class="p-3.5 rounded-xl border transition cursor-pointer ${
+            isActive 
+              ? 'bg-blue-600/10 border-blue-500/80 shadow-md shadow-blue-500/10' 
+              : 'bg-slate-900/60 hover:bg-slate-900 border-slate-800'
+          }">
+            <div class="flex justify-between items-start gap-2">
+              <div class="space-y-0.5 flex-1 min-w-0">
+                <h4 class="font-bold text-xs text-white truncate flex items-center gap-1.5">
+                  ${c.name}
+                  ${remainingBalance <= 0 ? '<span class="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded font-bold">PAGADO</span>' : ''}
+                </h4>
+                <p class="text-[11px] text-slate-400 truncate">${c.notes || 'Sin notas'}</p>
+              </div>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-semibold">
+                ${c.rateAnnual}% E.A.
+              </span>
+            </div>
+
+            <div class="mt-3 pt-2.5 border-t border-slate-800/80 flex justify-between items-center text-[11px]">
+              <div>
+                <span class="text-slate-500 text-[10px] block">Saldo Actual</span>
+                <span class="font-bold text-blue-400 font-mono">${fmtMoney(remainingBalance)}</span>
+              </div>
+              <div class="text-right">
+                <span class="text-slate-500 text-[10px] block">Progreso</span>
+                <span class="font-semibold text-emerald-400">${progressPct}% amortizado</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function selectClient(id) {
+      activeClientId = id;
+      render();
+    }
+
+    // Core Calculation for a Client with Real Payments
+    function calculateClientSchedule(client) {
+      const monthlyRate = (client.rateAnnual / 100) / 12;
+      const suggestedPMT = calcPMT(client.capital, monthlyRate, client.months);
+      
+      let balance = client.capital;
+      let totalInterestPaid = 0;
+      let totalCapitalPaid = 0;
+      let totalRealPaid = 0;
       const rows = [];
 
-      for (let i = 1; i <= months; i++) {
-        const currentDate = addMonths(startDateStr, i);
-        const interest = balance * monthlyRate;
-        let principalPayment = monthlyPayment - interest;
-
-        if (i === months || principalPayment > balance) {
-          principalPayment = balance;
-          monthlyPayment = principalPayment + interest;
+      for (let i = 1; i <= client.months; i++) {
+        const dateObj = addMonths(client.startDate, i);
+        const dateFormatted = fmtDate(dateObj);
+        
+        // If balance reached 0 previously and no balance left
+        if (balance <= 0 && (!client.payments[i] || client.payments[i] === 0)) {
+          rows.push({
+            num: i,
+            date: dateFormatted,
+            initialBalance: 0,
+            suggestedCuota: 0,
+            interest: 0,
+            realPayment: 0,
+            capitalPayment: 0,
+            finalBalance: 0,
+            status: 'FINISHED',
+            statusLabel: 'Finalizado',
+            hasCustomPayment: false
+          });
+          continue;
         }
 
         const initialBalance = balance;
-        const finalBalance = Math.max(0, balance - principalPayment);
-        totalInterest += interest;
-        totalCapitalAmortized += principalPayment;
-        totalCuotasPaid += monthlyPayment;
+        const interest = initialBalance * monthlyRate;
+
+        // Check if user entered a real payment for this month
+        const hasCustomPayment = (client.payments && client.payments.hasOwnProperty(i));
+        const realPayment = hasCustomPayment ? Number(client.payments[i]) : suggestedPMT;
+
+        let capitalPayment = 0;
+        let finalBalance = initialBalance;
+        let status = 'NORMAL';
+        let statusLabel = 'Al día';
+
+        if (hasCustomPayment) {
+          if (realPayment === 0) {
+            status = 'NO_PAY';
+            statusLabel = '🔴 Sin Pago';
+            capitalPayment = 0;
+            finalBalance = initialBalance; // Interest unpaid accumulates or balance unchanged
+          } else if (realPayment > suggestedPMT + 50) {
+            status = 'EXTRA';
+            statusLabel = '🔵 Abono Extra';
+            capitalPayment = Math.min(initialBalance, realPayment - interest);
+            finalBalance = Math.max(0, initialBalance - capitalPayment);
+          } else if (realPayment < suggestedPMT - 50) {
+            status = 'PARTIAL';
+            statusLabel = '🟡 Pago Parcial';
+            capitalPayment = Math.max(0, Math.min(initialBalance, realPayment - interest));
+            finalBalance = Math.max(0, initialBalance - capitalPayment);
+          } else {
+            status = 'NORMAL';
+            statusLabel = '🟢 Pactado';
+            capitalPayment = Math.min(initialBalance, realPayment - interest);
+            finalBalance = Math.max(0, initialBalance - capitalPayment);
+          }
+        } else {
+          // Default theoretical
+          status = 'PENDING';
+          statusLabel = '⚪ Pendiente';
+          capitalPayment = Math.min(initialBalance, suggestedPMT - interest);
+          finalBalance = Math.max(0, initialBalance - capitalPayment);
+        }
+
+        totalInterestPaid += interest;
+        totalCapitalPaid += capitalPayment;
+        totalRealPaid += realPayment;
+        balance = finalBalance;
 
         rows.push({
           num: i,
-          date: formatDate(currentDate),
+          date: dateFormatted,
           initialBalance: initialBalance,
-          monthlyPayment: monthlyPayment,
-          principalPayment: principalPayment,
+          suggestedCuota: suggestedPMT,
           interest: interest,
-          finalBalance: finalBalance
+          realPayment: realPayment,
+          capitalPayment: capitalPayment,
+          finalBalance: finalBalance,
+          status: status,
+          statusLabel: statusLabel,
+          hasCustomPayment: hasCustomPayment
         });
-
-        balance = finalBalance;
       }
 
-      // Update KPI cards
-      document.getElementById('kpiMonthlyPayment').textContent = formatMoney(monthlyPayment);
-      document.getElementById('kpiTotalInterest').textContent = formatMoney(totalInterest);
-      document.getElementById('kpiTotalPayment').textContent = formatMoney(principal + totalInterest);
-      document.getElementById('kpiInterestRatio').textContent = `${((totalInterest / (principal || 1)) * 100).toFixed(1)}% del capital inicial`;
-
-      const finalDateObj = addMonths(startDateStr, months);
-      document.getElementById('kpiFinalDate').textContent = formatDate(finalDateObj);
-      document.getElementById('endDateFormatted').textContent = `Fecha Final: ${formatDate(finalDateObj)}`;
-
-      // Update totals row in table footer
-      document.getElementById('footTotalCuota').textContent = formatMoney(totalCuotasPaid);
-      document.getElementById('footTotalCapital').textContent = formatMoney(totalCapitalAmortized);
-      document.getElementById('footTotalIntereses').textContent = formatMoney(totalInterest);
-
-      // Filter rows
-      let visibleRows = rows;
-      if (filterMode === 'first24') {
-        visibleRows = rows.slice(0, 24);
-      } else if (filterMode === 'first60') {
-        visibleRows = rows.slice(0, 60);
-      } else if (filterMode === 'last24') {
-        visibleRows = rows.slice(-24);
+      // Find current active month (first unpaid or partially recorded)
+      let currentMonthIndex = 1;
+      for (let i = 1; i <= client.months; i++) {
+        if (!client.payments || !client.payments.hasOwnProperty(i)) {
+          currentMonthIndex = i;
+          break;
+        }
       }
 
-      document.getElementById('displayedCount').textContent = visibleRows.length;
-
-      // Render table
-      const tbody = document.getElementById('tableBody');
-      tbody.innerHTML = '';
-
-      visibleRows.forEach((r, idx) => {
-        const tr = document.createElement('tr');
-        tr.className = idx % 2 === 0 ? 'bg-white hover:bg-blue-50/50 transition-colors' : 'bg-slate-50/70 hover:bg-blue-50/50 transition-colors';
-
-        tr.innerHTML = `
-          <td class="py-2.5 px-4 text-center font-sans font-medium text-slate-500">${r.num}</td>
-          <td class="py-2.5 px-4 text-center font-sans text-slate-700">${r.date}</td>
-          <td class="py-2.5 px-4 text-right text-slate-700">${formatMoney(r.initialBalance)}</td>
-          <td class="py-2.5 px-4 text-right font-semibold text-slate-900">${formatMoney(r.monthlyPayment)}</td>
-          <td class="py-2.5 px-4 text-right font-medium text-emerald-700">${formatMoney(r.principalPayment)}</td>
-          <td class="py-2.5 px-4 text-right font-medium text-rose-600">${formatMoney(r.interest)}</td>
-          <td class="py-2.5 px-4 text-right font-bold text-blue-700">${formatMoney(r.finalBalance)}</td>
-        `;
-        tbody.appendChild(tr);
-      });
+      return {
+        suggestedPMT,
+        currentBalance: balance,
+        totalInterestPaid,
+        totalCapitalPaid,
+        totalRealPaid,
+        currentMonthIndex,
+        rows
+      };
     }
 
-    ['inputCapital', 'inputRate', 'inputMonths', 'inputStartDate', 'selectPage'].forEach(id => {
-      document.getElementById(id).addEventListener('input', calculateAmortization);
-      document.getElementById(id).addEventListener('change', calculateAmortization);
-    });
+    // Render Active Client Details Pane
+    function renderClientDetail() {
+      const container = document.getElementById('clientDetailContainer');
+      const client = clients.find(c => c.id === activeClientId);
 
-    calculateAmortization();
+      if (!client) {
+        container.innerHTML = `
+          <div class="bg-slate-950 border border-slate-800 rounded-2xl p-12 text-center text-slate-500 space-y-3">
+            <i class="fa-solid fa-address-card text-3xl text-slate-600"></i>
+            <h3 class="text-sm font-bold text-slate-300">Selecciona o crea un cliente para ver su tabla de seguimiento</h3>
+            <button onclick="openNewClientModal()" class="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold shadow hover:bg-blue-500 transition">
+              Crear Nuevo Préstamo
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      const schedule = calculateClientSchedule(client);
+      const paidMonthsCount = Object.keys(client.payments || {}).length;
+
+      container.innerHTML = `
+        <!-- Client Profile Header Card -->
+        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-md space-y-5">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-800">
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="text-lg font-black text-white">${client.name}</h2>
+                <span class="text-xs px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-semibold">
+                  ${client.months} Meses
+                </span>
+              </div>
+              <p class="text-xs text-slate-400 mt-0.5">${client.notes || 'Sin descripción adicional'}</p>
+            </div>
+
+            <!-- Client Action buttons -->
+            <div class="flex items-center gap-2 flex-wrap">
+              <button onclick="openQuickPayModal('${client.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-lg shadow-emerald-500/20 flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-plus-circle"></i>
+                Registrar Pago de Cuota
+              </button>
+              <button onclick="exportClientExcel('${client.id}')" class="bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition" title="Exportar Excel">
+                <i class="fa-solid fa-file-excel"></i>
+                <span class="hidden sm:inline">Descargar Excel</span>
+              </button>
+              <button onclick="editClient('${client.id}')" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-xs" title="Editar Préstamo">
+                <i class="fa-solid fa-pen"></i>
+              </button>
+              <button onclick="deleteClient('${client.id}')" class="p-2 bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 border border-rose-900/40 rounded-xl text-xs" title="Eliminar Cliente">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- KPI Cards for this Loan -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800">
+              <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Capital Inicial</span>
+              <span class="text-base font-extrabold text-white font-mono">${fmtMoney(client.capital)}</span>
+              <span class="text-[10px] text-slate-500 block mt-0.5">Tasa: ${client.rateAnnual}% Anual</span>
+            </div>
+
+            <div class="bg-blue-950/40 p-3.5 rounded-xl border border-blue-900/40">
+              <span class="text-[10px] uppercase font-bold text-blue-400 tracking-wider block">Saldo Pendiente Real</span>
+              <span class="text-base font-extrabold text-blue-300 font-mono">${fmtMoney(schedule.currentBalance)}</span>
+              <span class="text-[10px] text-blue-400 block mt-0.5">${paidMonthsCount} cuotas registradas</span>
+            </div>
+
+            <div class="bg-emerald-950/40 p-3.5 rounded-xl border border-emerald-900/40">
+              <span class="text-[10px] uppercase font-bold text-emerald-400 tracking-wider block">Total Pagado Real</span>
+              <span class="text-base font-extrabold text-emerald-300 font-mono">${fmtMoney(schedule.totalRealPaid)}</span>
+              <span class="text-[10px] text-emerald-400 block mt-0.5">Abonado a capital e int.</span>
+            </div>
+
+            <div class="bg-purple-950/40 p-3.5 rounded-xl border border-purple-900/40">
+              <span class="text-[10px] uppercase font-bold text-purple-400 tracking-wider block">Cuota Sugerida</span>
+              <span class="text-base font-extrabold text-purple-300 font-mono">${fmtMoney(schedule.suggestedPMT)}</span>
+              <span class="text-[10px] text-purple-400 block mt-0.5">Cuota fija de referencia</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Real Payments Amortization Table -->
+        <div class="bg-slate-950 border border-slate-800 rounded-2xl shadow-md overflow-hidden space-y-3">
+          <div class="p-4 bg-slate-900 border-b border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+            <div>
+              <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <i class="fa-solid fa-list-check text-blue-400"></i>
+                Seguimiento Cuota a Cuota (Modifica el Pago Real en cualquier fila)
+              </h3>
+              <p class="text-[11px] text-slate-400">Escribe en la columna "Pago Real" lo que pagó el cliente y toda la tabla se recalcula sola.</p>
+            </div>
+            <div class="flex items-center gap-2 text-xs">
+              <span class="inline-flex items-center gap-1 text-slate-400"><span class="w-2 h-2 rounded-full bg-blue-500"></span> Abono Extra</span>
+              <span class="inline-flex items-center gap-1 text-slate-400"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Parcial</span>
+              <span class="inline-flex items-center gap-1 text-slate-400"><span class="w-2 h-2 rounded-full bg-rose-500"></span> Sin Pago</span>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto max-h-[520px] overflow-y-auto">
+            <table class="w-full text-xs text-left border-collapse">
+              <thead class="sticky-header bg-slate-900 text-slate-300 font-semibold border-b border-slate-800">
+                <tr>
+                  <th class="py-3 px-3 text-center">N°</th>
+                  <th class="py-3 px-3 text-center">Fecha</th>
+                  <th class="py-3 px-3 text-right">Capital Inicial</th>
+                  <th class="py-3 px-3 text-right text-purple-400">Cuota Pactada</th>
+                  <th class="py-3 px-3 text-right text-rose-400">Intereses</th>
+                  <th class="py-3 px-3 text-center text-white bg-slate-800/80 w-40">Pago Real ($)</th>
+                  <th class="py-3 px-3 text-right text-emerald-400">Abono a Capital</th>
+                  <th class="py-3 px-3 text-right text-blue-400">Saldo Capital Real</th>
+                  <th class="py-3 px-3 text-center">Estado</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800/50 font-mono">
+                ${schedule.rows.map(r => {
+                  return `
+                    <tr class="hover:bg-slate-900/80 transition-colors ${r.hasCustomPayment ? 'bg-slate-900/40' : ''}">
+                      <td class="py-2.5 px-3 text-center font-sans text-slate-500 font-bold">${r.num}</td>
+                      <td class="py-2.5 px-3 text-center font-sans text-slate-400">${r.date}</td>
+                      <td class="py-2.5 px-3 text-right text-slate-300 font-medium">${fmtMoney(r.initialBalance)}</td>
+                      <td class="py-2.5 px-3 text-right text-purple-300/80">${fmtMoney(r.suggestedCuota)}</td>
+                      <td class="py-2.5 px-3 text-right text-rose-300/90">${fmtMoney(r.interest)}</td>
+                      
+                      <!-- Editable Real Payment Cell -->
+                      <td class="py-1 px-2 text-center bg-slate-900/80">
+                        <div class="relative flex items-center">
+                          <span class="absolute left-2 text-slate-500 text-[10px]">$</span>
+                          <input 
+                            type="number" 
+                            step="1000"
+                            value="${r.hasCustomPayment ? r.realPayment : ''}" 
+                            placeholder="${Math.round(r.suggestedCuota)}"
+                            onchange="updateRowPayment('${client.id}', ${r.num}, this.value)"
+                            class="w-full bg-slate-950 border ${r.hasCustomPayment ? 'border-blue-500 font-bold text-white shadow-inner' : 'border-slate-800 text-slate-400'} rounded-lg pl-5 pr-2 py-1.5 text-xs text-right focus:bg-black focus:text-white focus:outline-none focus:ring-1 focus:ring-blue-400 transition"
+                          />
+                        </div>
+                      </td>
+
+                      <td class="py-2.5 px-3 text-right font-bold text-emerald-400">${fmtMoney(r.capitalPayment)}</td>
+                      <td class="py-2.5 px-3 text-right font-bold text-blue-300">${fmtMoney(r.finalBalance)}</td>
+                      
+                      <td class="py-2.5 px-3 text-center font-sans">
+                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                          r.status === 'EXTRA' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' :
+                          r.status === 'PARTIAL' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
+                          r.status === 'NO_PAY' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' :
+                          r.status === 'NORMAL' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
+                          'bg-slate-800 text-slate-400'
+                        }">
+                          ${r.statusLabel}
+                        </span>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    // Update individual payment cell on change
+    function updateRowPayment(clientId, monthNum, valStr) {
+      const client = clients.find(c => c.id === clientId);
+      if (!client) return;
+
+      if (!client.payments) client.payments = {};
+
+      if (valStr === '' || valStr === null) {
+        delete client.payments[monthNum];
+      } else {
+        client.payments[monthNum] = Math.max(0, parseFloat(valStr) || 0);
+      }
+
+      saveState();
+      render();
+    }
+
+    // Modal Operations
+    function openNewClientModal() {
+      document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-user-plus text-blue-500"></i> Nuevo Registro de Cliente / Préstamo';
+      document.getElementById('formClientId').value = '';
+      document.getElementById('formClientName').value = '';
+      document.getElementById('formClientNotes').value = '';
+      document.getElementById('formCapital').value = '50000000';
+      document.getElementById('formRate').value = '12';
+      document.getElementById('formMonths').value = '180';
+      
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('formStartDate').value = today;
+
+      document.getElementById('clientModal').classList.remove('hidden');
+    }
+
+    function editClient(id) {
+      const client = clients.find(c => c.id === id);
+      if (!client) return;
+
+      document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-pen text-blue-500"></i> Editar Datos del Préstamo';
+      document.getElementById('formClientId').value = client.id;
+      document.getElementById('formClientName').value = client.name;
+      document.getElementById('formClientNotes').value = client.notes || '';
+      document.getElementById('formCapital').value = client.capital;
+      document.getElementById('formRate').value = client.rateAnnual;
+      document.getElementById('formMonths').value = client.months;
+      document.getElementById('formStartDate').value = client.startDate;
+
+      document.getElementById('clientModal').classList.remove('hidden');
+    }
+
+    function saveClientForm(e) {
+      e.preventDefault();
+      const id = document.getElementById('formClientId').value;
+      const name = document.getElementById('formClientName').value.trim();
+      const notes = document.getElementById('formClientNotes').value.trim();
+      const capital = parseFloat(document.getElementById('formCapital').value) || 0;
+      const rateAnnual = parseFloat(document.getElementById('formRate').value) || 0;
+      const months = parseInt(document.getElementById('formMonths').value) || 180;
+      const startDate = document.getElementById('formStartDate').value;
+
+      if (id) {
+        // Edit
+        const client = clients.find(c => c.id === id);
+        if (client) {
+          client.name = name;
+          client.notes = notes;
+          client.capital = capital;
+          client.rateAnnual = rateAnnual;
+          client.months = months;
+          client.startDate = startDate;
+        }
+      } else {
+        // New
+        const newClient = {
+          id: 'c_' + Date.now(),
+          name,
+          notes,
+          capital,
+          rateAnnual,
+          months,
+          startDate,
+          payments: {}
+        };
+        clients.unshift(newClient);
+        activeClientId = newClient.id;
+      }
+
+      saveState();
+      closeModal('clientModal');
+      render();
+    }
+
+    function deleteClient(id) {
+      const client = clients.find(c => c.id === id);
+      if (!client) return;
+
+      if (confirm(`¿Estás seguro de eliminar el préstamo de ${client.name}?`)) {
+        clients = clients.filter(c => c.id !== id);
+        if (activeClientId === id) {
+          activeClientId = clients.length > 0 ? clients[0].id : null;
+        }
+        saveState();
+        render();
+      }
+    }
+
+    function openQuickPayModal(clientId) {
+      const client = clients.find(c => c.id === clientId);
+      if (!client) return;
+
+      const schedule = calculateClientSchedule(client);
+      const nextMonth = schedule.currentMonthIndex;
+      const nextDate = fmtDate(addMonths(client.startDate, nextMonth));
+
+      document.getElementById('quickPayClientName').textContent = client.name;
+      document.getElementById('quickPayMonthNum').textContent = nextMonth;
+      document.getElementById('quickPayDate').textContent = nextDate;
+      document.getElementById('quickPaySuggestedAmount').textContent = fmtMoney(schedule.suggestedPMT);
+      
+      const currentVal = (client.payments && client.payments.hasOwnProperty(nextMonth)) 
+        ? client.payments[nextMonth] 
+        : Math.round(schedule.suggestedPMT);
+
+      document.getElementById('quickPayAmountInput').value = currentVal;
+      document.getElementById('quickPayAmountInput').dataset.month = nextMonth;
+      document.getElementById('quickPayAmountInput').dataset.clientId = clientId;
+
+      document.getElementById('quickPayModal').classList.remove('hidden');
+    }
+
+    function setQuickPayExact() {
+      const client = clients.find(c => c.id === activeClientId);
+      if (!client) return;
+      const schedule = calculateClientSchedule(client);
+      document.getElementById('quickPayAmountInput').value = Math.round(schedule.suggestedPMT);
+    }
+
+    function setQuickPayZero() {
+      document.getElementById('quickPayAmountInput').value = 0;
+    }
+
+    function confirmQuickPayment() {
+      const input = document.getElementById('quickPayAmountInput');
+      const clientId = input.dataset.clientId;
+      const monthNum = parseInt(input.dataset.month);
+      const amount = parseFloat(input.value) || 0;
+
+      const client = clients.find(c => c.id === clientId);
+      if (!client) return;
+
+      if (!client.payments) client.payments = {};
+      client.payments[monthNum] = amount;
+
+      saveState();
+      closeModal('quickPayModal');
+      render();
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    // Export Client to Personalized Excel
+    function exportClientExcel(clientId) {
+      const client = clients.find(c => c.id === clientId);
+      if (!client) return;
+
+      const schedule = calculateClientSchedule(client);
+
+      const headerInfo = [
+        ["ESTADO DE CUENTA Y TABLA DE AMORTIZACIÓN REAL"],
+        ["Cliente:", client.name],
+        ["Notas / Identificación:", client.notes || "N/A"],
+        ["Capital Inicial:", client.capital],
+        ["Tasa de Interés Nominal Anual:", `${client.rateAnnual}%`],
+        ["Plazo Total:", `${client.months} Meses`],
+        ["Fecha de Inicio:", client.startDate],
+        ["Saldo Pendiente Actual:", schedule.currentBalance],
+        ["Total Pagado a la Fecha:", schedule.totalRealPaid],
+        []
+      ];
+
+      const tableHeaders = [
+        "N° Cuota",
+        "Fecha",
+        "Capital Inicial",
+        "Cuota Pactada",
+        "Intereses",
+        "Pago Real Realizado",
+        "Abono a Capital",
+        "Saldo del Capital Real",
+        "Estado del Pago"
+      ];
+
+      const dataRows = schedule.rows.map(r => [
+        r.num,
+        r.date,
+        r.initialBalance,
+        r.suggestedCuota,
+        r.interest,
+        r.realPayment,
+        r.capitalPayment,
+        r.finalBalance,
+        r.statusLabel
+      ]);
+
+      const ws = XLSX.utils.aoa_to_sheet([...headerInfo, tableHeaders, ...dataRows]);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Seguimiento Real");
+
+      const cleanName = client.name.replace(/[^a-zA-Z0-9]/g, '_');
+      XLSX.writeFile(wb, `Amortizacion_${cleanName}.xlsx`);
+    }
+
+    // Backup & Restore
+    function openBackupModal() {
+      document.getElementById('backupModal').classList.remove('hidden');
+    }
+
+    function downloadBackupJSON() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(clients, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `Respaldo_Prestamos_${new Date().toISOString().split('T')[0]}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    function importBackupJSON(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (Array.isArray(imported)) {
+            clients = imported;
+            if (clients.length > 0) activeClientId = clients[0].id;
+            saveState();
+            render();
+            closeModal('backupModal');
+            alert('¡Copia de seguridad restaurada con éxito!');
+          } else {
+            alert('El archivo no tiene el formato correcto.');
+          }
+        } catch (err) {
+          alert('Error al leer el archivo JSON.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // Quick Simulator Calculator
+    function calculateSimulator() {
+      const capital = parseFloat(document.getElementById('simCapital').value) || 0;
+      const rate = parseFloat(document.getElementById('simRate').value) || 0;
+      const months = parseInt(document.getElementById('simMonths').value) || 180;
+      const startDate = document.getElementById('simStartDate').value || new Date().toISOString().split('T')[0];
+
+      const monthlyRate = (rate / 100) / 12;
+      const pmt = calcPMT(capital, monthlyRate, months);
+
+      document.getElementById('simCapitalFmt').textContent = fmtMoney(capital);
+      document.getElementById('simMonthlyRateFmt').textContent = `Tasa mensual: ${(monthlyRate * 100).toFixed(4)}%`;
+      document.getElementById('simYearsFmt').textContent = `${(months/12).toFixed(1)} años (${months} cuotas)`;
+
+      const finalDate = addMonths(startDate, months);
+      document.getElementById('simEndDateFmt').textContent = `Fecha final: ${fmtDate(finalDate)}`;
+      document.getElementById('simKpiCuota').textContent = fmtMoney(pmt);
+      document.getElementById('simKpiFinalDate').textContent = fmtDate(finalDate);
+
+      let balance = capital;
+      let totalInterest = 0;
+      const tbody = document.getElementById('simTableBody');
+      tbody.innerHTML = '';
+
+      for (let i = 1; i <= months; i++) {
+        const currentDate = addMonths(startDate, i);
+        const interest = balance * monthlyRate;
+        let capPayment = pmt - interest;
+
+        if (i === months || capPayment > balance) {
+          capPayment = balance;
+        }
+        const initial = balance;
+        const finalBal = Math.max(0, balance - capPayment);
+        totalInterest += interest;
+        balance = finalBal;
+
+        const tr = document.createElement('tr');
+        tr.className = i % 2 === 0 ? 'bg-slate-900/40' : 'bg-transparent';
+        tr.innerHTML = `
+          <td class="py-2.5 px-3 text-center text-slate-500 font-sans">${i}</td>
+          <td class="py-2.5 px-3 text-center text-slate-400 font-sans">${fmtDate(currentDate)}</td>
+          <td class="py-2.5 px-3 text-right text-slate-300 font-medium">${fmtMoney(initial)}</td>
+          <td class="py-2.5 px-3 text-right font-bold text-white">${fmtMoney(pmt)}</td>
+          <td class="py-2.5 px-3 text-right font-bold text-emerald-400">${fmtMoney(capPayment)}</td>
+          <td class="py-2.5 px-3 text-right font-bold text-rose-400">${fmtMoney(interest)}</td>
+          <td class="py-2.5 px-3 text-right font-bold text-blue-300">${fmtMoney(finalBal)}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+
+      document.getElementById('simKpiInterest').textContent = fmtMoney(totalInterest);
+      document.getElementById('simKpiTotal').textContent = fmtMoney(capital + totalInterest);
+    }
+
+    function exportSimulatorToExcel() {
+      window.location.href = "Tabla_Amortizacion_180_Meses.xlsx";
+    }
+
+    // Main Render
+    function render() {
+      renderClientsList();
+      renderClientDetail();
+    }
+
+    // Init
+    document.addEventListener('DOMContentLoaded', () => {
+      const today = new Date().toISOString().split('T')[0];
+      const simStart = document.getElementById('simStartDate');
+      if (simStart) simStart.value = today;
+      loadState();
+    });
   </script>
 </body>
 </html>
