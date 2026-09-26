@@ -480,29 +480,38 @@ CREATE POLICY "Public full access" ON clients FOR ALL USING (true) WITH CHECK (t
     // ==========================================
     // SUPABASE INTEGRATION & REALTIME ENGINE
     // ==========================================
+    const DEFAULT_SB_URL = "https://supabase.bepelican.online";
+    const DEFAULT_SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzc4NjMxNjA3LCJleHAiOjE5MzYzMTE2MDd9.Qq52hADVNAiuPDjkoF_OirOfAXRCSV4beXd3atMZsrA";
+
     function initSupabase() {
+      let sbUrl = DEFAULT_SB_URL;
+      let sbKey = DEFAULT_SB_KEY;
+
       const cfgStr = localStorage.getItem(SB_CONFIG_KEY);
-      if (!cfgStr) {
-        updateSupabaseUI(false);
-        loadLocalState();
-        return;
+      if (cfgStr) {
+        try {
+          const cfg = JSON.parse(cfgStr);
+          if (cfg.url && cfg.key) {
+            sbUrl = cfg.url;
+            sbKey = cfg.key;
+          }
+        } catch (e) {}
       }
 
-      try {
-        const cfg = JSON.parse(cfgStr);
-        if (cfg.url && cfg.key && window.supabase) {
-          supabaseClient = window.supabase.createClient(cfg.url, cfg.key);
-          document.getElementById('sbUrlInput').value = cfg.url;
-          document.getElementById('sbKeyInput').value = cfg.key;
+      if (sbUrl && sbKey && window.supabase) {
+        try {
+          supabaseClient = window.supabase.createClient(sbUrl, sbKey);
+          document.getElementById('sbUrlInput').value = sbUrl;
+          document.getElementById('sbKeyInput').value = sbKey;
           updateSupabaseUI(true);
           fetchFromSupabase();
           subscribeToRealtime();
-        } else {
+        } catch (err) {
+          console.error('Supabase init error:', err);
           updateSupabaseUI(false);
           loadLocalState();
         }
-      } catch (err) {
-        console.error('Supabase init error:', err);
+      } else {
         updateSupabaseUI(false);
         loadLocalState();
       }
